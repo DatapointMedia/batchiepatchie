@@ -5,12 +5,11 @@ import (
 	"os"
 	"path"
 	"strconv"
-
-	"github.com/SemanticSugar/batchiepatchie/config"
-	"github.com/SemanticSugar/batchiepatchie/fetcher"
-	"github.com/SemanticSugar/batchiepatchie/handlers"
-	"github.com/SemanticSugar/batchiepatchie/jobs"
-	"github.com/SemanticSugar/batchiepatchie/syncer"
+	"github.com/AdRoll/batchiepatchie/config"
+	"github.com/AdRoll/batchiepatchie/fetcher"
+	"github.com/AdRoll/batchiepatchie/handlers"
+	"github.com/AdRoll/batchiepatchie/jobs"
+	"github.com/AdRoll/batchiepatchie/syncer"
 	"github.com/bakatz/echo-logrusmiddleware"
 	"github.com/labstack/echo"
 	"github.com/opentracing/opentracing-go"
@@ -122,7 +121,7 @@ func main() {
 	e := echo.New()
 
 	// Logging middleware for API requests
-	e.Logger = logrusmiddleware.Logger{Logger: log.StandardLogger()}
+	// e.Logger = logrusmiddleware.Logger{Logger: log.StandardLogger()}
 	e.Use(logrusmiddleware.Hook())
 
 	// Jobs API
