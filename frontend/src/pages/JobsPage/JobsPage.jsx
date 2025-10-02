@@ -5,6 +5,7 @@ import ReactDataGrid from 'react-data-grid';
 import {
     fetchJobsPage,
     killJobs,
+    rerunJobs,
     setSelectedIds,
     setParams,
     syncJobQueues,
@@ -125,6 +126,7 @@ class JobsPage extends React.Component {
         height: PropTypes.number.isRequired,
         jobs: PropTypes.array.isRequired,
         killJobs: PropTypes.func.isRequired,
+        rerunJobs: PropTypes.func.isRequired,
         q: PropTypes.string,
         dateRange: PropTypes.string,
         routing: PropTypes.object.isRequired,
@@ -210,6 +212,14 @@ class JobsPage extends React.Component {
                     >
                         Kill { this.props.selectedIds.length } jobs
                     </button>
+
+                    <button
+                        className='btn btn-info'
+                        disabled={ !this.props.selectedIds.length }
+                        onClick={ this.rerunJobs }
+                    >
+                        Clone & Rerun { this.props.selectedIds.length } jobs
+                    </button>
                     <StatusSelector />
                     <QueueSelector />
                     <div className='auto-refresh'>
@@ -290,6 +300,12 @@ class JobsPage extends React.Component {
             .catch(() => {});
     }
 
+    rerunJobs = () => {
+        this.props.rerunJobs(this.props.selectedIds)
+            .then(() => this.props.fetchJobsPage())
+            .catch(() => {});
+    }
+
     previousPage = () => {
         if (this.props.page > 0) {
             this.props.setParams({ page: this.props.page - 1 });
@@ -363,6 +379,7 @@ const mapStateToProps = state => ({
 const actions = {
     fetchJobsPage,
     killJobs,
+    rerunJobs,
     setSelectedIds,
     setParams,
     syncJobQueues,

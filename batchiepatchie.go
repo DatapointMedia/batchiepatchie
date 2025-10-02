@@ -145,6 +145,7 @@ func main() {
 		api.GET("/jobs/:id", s.FindOne)
 		api.GET("/jobs", s.Find)
 		api.POST("/jobs/kill", s.KillMany)
+		api.POST("/jobs/rerun", s.RerunMany)
 		api.GET("/jobs/:id/logs", s.FetchLogs)
 		api.GET("/job_queues/active", s.ListActiveJobQueues)
 		api.GET("/job_queues/all", s.ListAllJobQueues)
