@@ -25,6 +25,7 @@ import QueueSelector from 'components/QueueSelector/QueueSelector';
 import StatusSelector from 'components/StatusSelector/StatusSelector';
 import './JobsPage.scss';
 import 'react-select/dist/react-select.css';
+import Select from 'react-select';
 
 const AUTO_REFRESH_TIMEOUT = 5000; // ms
 
@@ -138,13 +139,16 @@ class JobsPage extends React.Component {
         status: PropTypes.object.isRequired,
         syncJobQueues: PropTypes.func.isRequired,
         updateJobsQueryParams: PropTypes.func.isRequired,
+        queues: PropTypes.array,
     };
 
     constructor(props) {
         super(props);
         // Using state for autoRefresh so it resets to false on navigation
         this.state = {
-            autoRefresh: false
+            autoRefresh: false,
+            showRerunPicker: false,
+            rerunQueueOverride: '',
         };
     }
 
@@ -220,6 +224,40 @@ class JobsPage extends React.Component {
                     >
                         Clone & Rerun { this.props.selectedIds.length } jobs
                     </button>
+
+                    { this.state.showRerunPicker && (
+                        <div className='bp-modal-overlay' onClick={ this.cancelRerun }>
+                            <div className='bp-modal' onClick={ (e) => e.stopPropagation() }>
+                                <h4>Clone & Rerun jobs</h4>
+                                <p>Optionally select a queue to override.</p>
+                                <p>Leave blank to use each job's existing queue.</p>
+                                <Select
+                                    placeholder='Override queue (optional)'
+                                    options={ queues.sort().map(q => ({ label: q, value: q })) }
+                                    value={ this.state.rerunQueueOverride }
+                                    onChange={ this.onRerunQueueChange }
+                                    simpleValue
+                                    clearable
+                                />
+                                <div className='modal-actions'>
+                                    <button
+                                        className='btn btn-default'
+                                        onClick={ this.cancelRerun }
+                                        style={{ marginRight: 8 }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        className='btn btn-primary'
+                                        onClick={ this.confirmRerun }
+                                    >
+                                        Confirm
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) }
+
                     <StatusSelector />
                     <QueueSelector />
                     <div className='auto-refresh'>
@@ -301,15 +339,28 @@ class JobsPage extends React.Component {
     }
 
     rerunJobs = () => {
-        const input = window.prompt('Optionally enter a queue name to override for rerun (leave blank to use existing queue for each job):', '');
-        if (input === null) {
-            // User cancelled
-            return;
-        }
-        const queueOverride = input; // backend will treat empty string as no override
+        // Open inline picker for optional queue override
+        this.setState({ showRerunPicker: true });
+    }
+
+    onRerunQueueChange = (value) => {
+        this.setState({ rerunQueueOverride: value || '' });
+    }
+
+    confirmRerun = () => {
+        const queueOverride = this.state.rerunQueueOverride || '';
         this.props.rerunJobs(this.props.selectedIds, queueOverride)
-            .then(() => this.props.fetchJobsPage())
-            .catch(() => {});
+            .then(() => {
+                this.setState({ showRerunPicker: false, rerunQueueOverride: '' });
+                return this.props.fetchJobsPage();
+            })
+            .catch(() => {
+                this.setState({ showRerunPicker: false });
+            });
+    }
+
+    cancelRerun = () => {
+        this.setState({ showRerunPicker: false, rerunQueueOverride: '' });
     }
 
     previousPage = () => {
