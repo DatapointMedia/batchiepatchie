@@ -43,9 +43,10 @@ type KillTasks struct {
 }
 
 // RerunTasks is a struct to handle JSON request to rerun many tasks
-// For now it reuses the same shape as KillTasks: { ids: [] }
+// Accepts { ids: [], queue: "optional-override" }
 type RerunTasks struct {
-	IDs []string `json:"ids" form:"ids" query:"ids"`
+	IDs   []string `json:"ids" form:"ids" query:"ids"`
+	Queue string   `json:"queue" form:"queue" query:"queue"`
 }
 
 // Find is a request handler, returns json with jobs matching the query param 'q'
@@ -182,7 +183,7 @@ func (s *Server) RerunMany(c echo.Context) error {
 	span := opentracing.StartSpan("API.RerunMany")
 	defer span.Finish()
 
-	obj, err := BodyToKillTask(c)
+	obj, err := BodyToRerunTask(c)
 	if err != nil {
 		log.Error(err)
 		newErr := c.JSON(http.StatusBadRequest, "{\"error\": \"Cannot deserialize\"}")
@@ -194,6 +195,7 @@ func (s *Server) RerunMany(c echo.Context) error {
 	}
 
 	values := obj.IDs
+	overrideQueue := strings.TrimSpace(obj.Queue)
 	results := make(map[string]string)
 
 	for _, id := range values {
@@ -217,7 +219,11 @@ func (s *Server) RerunMany(c echo.Context) error {
 		}
 		jobName = jobName + "-rerun"
 		submitInput.JobName = aws.String(jobName)
-		submitInput.JobQueue = aws.String(orig.JobQueue)
+		if len(overrideQueue) > 0 {
+			submitInput.JobQueue = aws.String(overrideQueue)
+		} else {
+			submitInput.JobQueue = aws.String(orig.JobQueue)
+		}
 		// orig.Description stores JobDefinition (as synced)
 		if len(orig.Description) > 0 {
 			submitInput.JobDefinition = aws.String(orig.Description)
@@ -629,4 +635,20 @@ func BodyToKillTask(c echo.Context) (KillTasks, error) {
 
 	return obj, nil
 
+}
+
+func BodyToRerunTask(c echo.Context) (RerunTasks, error) {
+	var obj RerunTasks
+
+	s, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		log.Error("Cannot read request")
+		return obj, err
+	}
+
+	if err := json.Unmarshal(s, &obj); err != nil {
+		return obj, err
+	}
+
+	return obj, nil
 }

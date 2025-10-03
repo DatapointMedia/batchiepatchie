@@ -622,10 +622,10 @@ export function killJobs(ids) {
     };
 };
 
-export function rerunJobs(ids) {
+export function rerunJobs(ids, queue) {
     return (dispatch, getState) => {
         if (window.confirm(`Are you sure you wish to clone & rerun ${ids.length} jobs?`)) {
-            return JobsApi.rerunJobs(ids);
+            return JobsApi.rerunJobs(ids, queue);
         }
         return Promise.reject();
     };

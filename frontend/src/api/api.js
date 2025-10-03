@@ -52,8 +52,9 @@ class API {
         return this.post(this.joinUrls('jobs/kill'), { ids });
     }
 
-    rerunJobs(ids) {
-        return this.post(this.joinUrls('jobs/rerun'), { ids });
+    rerunJobs(ids, queue) {
+        const body = queue !== undefined ? { ids, queue } : { ids };
+        return this.post(this.joinUrls('jobs/rerun'), body);
     }
 
     get(url) {

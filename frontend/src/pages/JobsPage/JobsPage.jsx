@@ -301,7 +301,13 @@ class JobsPage extends React.Component {
     }
 
     rerunJobs = () => {
-        this.props.rerunJobs(this.props.selectedIds)
+        const input = window.prompt('Optionally enter a queue name to override for rerun (leave blank to use existing queue for each job):', '');
+        if (input === null) {
+            // User cancelled
+            return;
+        }
+        const queueOverride = input; // backend will treat empty string as no override
+        this.props.rerunJobs(this.props.selectedIds, queueOverride)
             .then(() => this.props.fetchJobsPage())
             .catch(() => {});
     }
