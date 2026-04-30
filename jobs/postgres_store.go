@@ -1550,12 +1550,18 @@ func (pq *postgreSQLStore) CleanOldInstanceEventLogs() error {
 	return nil
 }
 
-func NewPostgreSQLStore(databaseHost string, databasePort int, databaseUsername string, databaseName string, databasePassword string, databaseRootCertificate string) (*postgreSQLStore, error) {
+func NewPostgreSQLStore(databaseHost string, databasePort int, databaseUsername string, databaseName string, databasePassword string, databaseRootCertificate string, databaseSSLMode string) (*postgreSQLStore, error) {
 	var dbstr string
 	if databaseRootCertificate == "" {
-		dbstr = fmt.Sprintf("user=%s dbname=%s host=%s port=%d password=%s sslmode=disable", databaseUsername, databaseName, databaseHost, databasePort, databasePassword)
+		if databaseSSLMode == "" {
+			databaseSSLMode = "disable"
+		}
+		dbstr = fmt.Sprintf("user=%s dbname=%s host=%s port=%d password=%s sslmode=%s", databaseUsername, databaseName, databaseHost, databasePort, databasePassword, databaseSSLMode)
 	} else {
-		dbstr = fmt.Sprintf("user=%s dbname=%s host=%s port=%d password=%s sslmode=verify-full sslrootcert=%s", databaseUsername, databaseName, databaseHost, databasePort, databasePassword, databaseRootCertificate)
+		if databaseSSLMode == "" {
+			databaseSSLMode = "verify-full"
+		}
+		dbstr = fmt.Sprintf("user=%s dbname=%s host=%s port=%d password=%s sslmode=%s sslrootcert=%s", databaseUsername, databaseName, databaseHost, databasePort, databasePassword, databaseSSLMode, databaseRootCertificate)
 	}
 
 	db, err := sql.Open("postgres", dbstr)
