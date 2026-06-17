@@ -42,6 +42,13 @@ type KillTasks struct {
 	IDs []string `json:"ids" form:"ids" query:"ids"`
 }
 
+// RerunTasks is a struct to handle JSON request to rerun many tasks
+// Accepts { ids: [], queue: "optional-override" }
+type RerunTasks struct {
+	IDs   []string `json:"ids" form:"ids" query:"ids"`
+	Queue string   `json:"queue" form:"queue" query:"queue"`
+}
+
 // Find is a request handler, returns json with jobs matching the query param 'q'
 func (s *Server) Find(c echo.Context) error {
 	span := opentracing.StartSpan("API.Find")
@@ -166,6 +173,103 @@ func (s *Server) KillMany(c echo.Context) error {
 			results[value] = err.Error()
 		}
 		results[value] = "OK"
+	}
+
+	return c.JSON(http.StatusOK, results)
+}
+
+// RerunMany clones the specified jobs and submits them again to AWS Batch.
+func (s *Server) RerunMany(c echo.Context) error {
+	span := opentracing.StartSpan("API.RerunMany")
+	defer span.Finish()
+
+	obj, err := BodyToRerunTask(c)
+	if err != nil {
+		log.Error(err)
+		newErr := c.JSON(http.StatusBadRequest, "{\"error\": \"Cannot deserialize\"}")
+		if newErr != nil {
+			log.Error(newErr)
+			return newErr
+		}
+		return err
+	}
+
+	values := obj.IDs
+	overrideQueue := strings.TrimSpace(obj.Queue)
+	results := make(map[string]string)
+
+	for _, id := range values {
+		// Fetch original job details from our storage
+		orig, findErr := s.Storage.FindOne(id)
+		if findErr != nil || orig == nil {
+			if findErr != nil {
+				results[id] = "find error: " + findErr.Error()
+			} else {
+				results[id] = "not found"
+			}
+			continue
+		}
+
+		// Build SubmitJobInput mirroring the original job
+		submitInput := &batch.SubmitJobInput{}
+		// Job name: use original with -rerun suffix to avoid name collisions
+		jobName := orig.Name
+		if len(jobName) == 0 {
+			jobName = "batchiepatchie-job"
+		}
+		jobName = jobName + "-rerun"
+		submitInput.JobName = aws.String(jobName)
+		if len(overrideQueue) > 0 {
+			submitInput.JobQueue = aws.String(overrideQueue)
+		} else {
+			submitInput.JobQueue = aws.String(orig.JobQueue)
+		}
+		// orig.Description stores JobDefinition (as synced)
+		if len(orig.Description) > 0 {
+			submitInput.JobDefinition = aws.String(orig.Description)
+		}
+
+		// Container overrides: command, vcpus, memory
+		co := &batch.ContainerOverrides{}
+		if orig.VCpus > 0 {
+			co.Vcpus = aws.Int64(orig.VCpus)
+		}
+		if orig.Memory > 0 {
+			co.Memory = aws.Int64(orig.Memory)
+		}
+		// Command is stored as JSON array string in CommandLine
+		if len(orig.CommandLine) > 0 {
+			var cmd []string
+			if err := json.Unmarshal([]byte(orig.CommandLine), &cmd); err == nil && len(cmd) > 0 {
+				awsCmd := make([]*string, 0, len(cmd))
+				for _, s := range cmd {
+					ss := s
+					awsCmd = append(awsCmd, aws.String(ss))
+				}
+				co.Command = awsCmd
+			}
+		}
+		// Only set overrides if any field present
+		if (co.Vcpus != nil) || (co.Memory != nil) || (co.Command != nil && len(co.Command) > 0) {
+			submitInput.ContainerOverrides = co
+		}
+
+		// Array properties
+		if orig.ArrayProperties != nil && orig.ArrayProperties.Size > 0 {
+			submitInput.ArrayProperties = &batch.ArrayProperties{Size: aws.Int64(orig.ArrayProperties.Size)}
+		}
+
+		// Submit the job
+		resp, subErr := awsclients.Batch.SubmitJob(submitInput)
+		if subErr != nil {
+			results[id] = "submit error: " + subErr.Error()
+			continue
+		}
+		if resp != nil && resp.JobId != nil {
+			results[id] = *resp.JobId
+		} else {
+			results[id] = "submitted"
+		}
 	}
 
 	return c.JSON(http.StatusOK, results)
@@ -531,4 +635,20 @@ func BodyToKillTask(c echo.Context) (KillTasks, error) {
 
 	return obj, nil
 
+}
+
+func BodyToRerunTask(c echo.Context) (RerunTasks, error) {
+	var obj RerunTasks
+
+	s, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		log.Error("Cannot read request")
+		return obj, err
+	}
+
+	if err := json.Unmarshal(s, &obj); err != nil {
+		return obj, err
+	}
+
+	return obj, nil
 }

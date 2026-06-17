@@ -87,7 +87,7 @@ func main() {
 	}
 	opentracing.SetGlobalTracer(trace)
 
-	storage, err := jobs.NewPostgreSQLStore(config.Conf.DatabaseHost, config.Conf.DatabasePort, config.Conf.DatabaseUsername, config.Conf.DatabaseName, config.Conf.DatabasePassword, config.Conf.DatabaseRootCertificate)
+	storage, err := jobs.NewPostgreSQLStore(config.Conf.DatabaseHost, config.Conf.DatabasePort, config.Conf.DatabaseUsername, config.Conf.DatabaseName, config.Conf.DatabasePassword, config.Conf.DatabaseRootCertificate, config.Conf.DatabaseSSLMode)
 	if err != nil {
 		log.Fatal("Creating postgresql store failed, ", err)
 	}
@@ -145,6 +145,7 @@ func main() {
 		api.GET("/jobs/:id", s.FindOne)
 		api.GET("/jobs", s.Find)
 		api.POST("/jobs/kill", s.KillMany)
+		api.POST("/jobs/rerun", s.RerunMany)
 		api.GET("/jobs/:id/logs", s.FetchLogs)
 		api.GET("/job_queues/active", s.ListActiveJobQueues)
 		api.GET("/job_queues/all", s.ListAllJobQueues)

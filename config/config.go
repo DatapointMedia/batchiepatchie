@@ -27,6 +27,7 @@ type Config struct {
 	DatabaseUsername        string `toml:"database_username"`
 	DatabaseName            string `toml:"database_name"`
 	DatabasePassword        string `toml:"database_password"`
+	DatabaseSSLMode         string `toml:"database_ssl_mode"`
 	DatabaseRootCertificate string `toml:"database_root_certificate"`
 
 	LogEntriesHost string `toml:"logentries_host"`

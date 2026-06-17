@@ -622,6 +622,15 @@ export function killJobs(ids) {
     };
 };
 
+export function rerunJobs(ids, queue) {
+    return (dispatch, getState) => {
+        if (window.confirm(`Are you sure you wish to clone & rerun ${ids.length} jobs?`)) {
+            return JobsApi.rerunJobs(ids, queue);
+        }
+        return Promise.reject();
+    };
+};
+
 function isFinished(job) {
     return job.status === 'FAILED' || job.status === 'SUCCEEDED' || job.status === 'GONE' || job.status === 'TERMINATED';
 }
